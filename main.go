@@ -40,6 +40,7 @@ type Room struct {
 	Password string
 	Clients  map[*Client]bool
 	Created  time.Time
+	Messages []map[string]interface{} // 新增字段用于存储聊天记录
 }
 
 var (
@@ -123,6 +124,7 @@ func handleCreateRoom(client *Client, msg map[string]interface{}) {
 		Password: password,
 		Clients:  make(map[*Client]bool),
 		Created:  time.Now(),
+		Messages: make([]map[string]interface{}, 0), // 初始化聊天记录
 	}
 
 	rooms[roomId] = room
@@ -146,6 +148,22 @@ func handleCreateRoom(client *Client, msg map[string]interface{}) {
 		"type":    "system",
 		"content": client.username + " 进入了房间",
 	})
+}
+
+func handleRoomMessage(client *Client, msg map[string]interface{}) {
+	if room, exists := rooms[client.roomId]; exists {
+		message := map[string]interface{}{
+			"type":      "message",
+			"from":      msg["from"], // 确保接收者能够获取发送者信息
+			"content":   msg["content"],
+			"timestamp": msg["timestamp"], // 确保接收者能够获取时间戳
+			"userId":    client.userId,    // 添加发送者的 userId
+			"room_id":   client.roomId,
+		}
+		room.Messages = append(room.Messages, message) // 将消息添加到聊天记录
+		broadcastToRoom(room.Id, message)
+		broadcastUsers(room.Id)
+	}
 }
 
 func handleJoinRoom(client *Client, msg map[string]interface{}) {
@@ -194,21 +212,12 @@ func handleJoinRoom(client *Client, msg map[string]interface{}) {
 
 	// 发送 userId 到客户端
 	sendUserID(client, client.userId)
-}
 
-func handleRoomMessage(client *Client, msg map[string]interface{}) {
-	if room, exists := rooms[client.roomId]; exists {
-		message := map[string]interface{}{
-			"type":      "message",
-			"from":      msg["from"], // 确保接收者能够获取发送者信息
-			"content":   msg["content"],
-			"timestamp": msg["timestamp"], // 确保接收者能够获取时间戳
-			"userId":    client.userId,    // 添加发送者的 userId
-			"room_id":   client.roomId,
-		}
-		broadcastToRoom(room.Id, message)
-		broadcastUsers(room.Id)
-	}
+	// 发送历史消息到新加入的用户
+	client.conn.WriteJSON(map[string]interface{}{
+		"type":     "history",
+		"messages": room.Messages,
+	})
 }
 
 func handleLeaveRoom(client *Client) {

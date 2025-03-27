@@ -15,6 +15,52 @@ body {
     align-items: center;
 }
 
+body.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+.dark-mode .tab, .dark-mode .tab-content, .dark-mode .input-group, .dark-mode .message {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+.dark-mode .message-header .username, .dark-mode .message-header .timestamp {
+    color: #ffffff;
+}
+.dark-mode .message-content {
+    color: #ffffff;
+}
+
+.dark-mode input{
+    border: 2px solid #3a3e41;
+    color: #ffffff;
+}
+
+.dark-mode #messages { // 添加聊天背景颜色
+    background-color: #181a1b ; // 确保优先级足够高
+    color:#181a1b;
+    background: #181a1b;
+}
+
+.dark-mode #messageInput { // 添加聊天背景颜色
+    background-color: #181a1b ; // 确保优先级足够高
+    color:#181a1b;
+    background: #181a1b;
+}
+
+.dark-mode #chatPanel { // 添加聊天面板背景颜色
+    background-color: #1e1e1e ; // 确保优先级足够高
+    color:#1e1e1e;
+    background: #1e1e1e;
+}
+
+.dark-mode .panel { // 添加深色模式下 panel 的背景颜色
+    background-color: #1e1e1e !important; // 确保优先级足够高
+}
+
+.dark-mode .room-info {
+    border-bottom: 2px solid #35393b;
+}
+
 .container {
     width: 100%;
     max-width: 800px;
@@ -94,6 +140,8 @@ button:hover {
     border-radius: 15px;
     max-width: 80%;
 }
+
+
 
 .message.user {
     background: var(--primary-color);

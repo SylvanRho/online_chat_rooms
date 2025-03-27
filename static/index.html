@@ -3,6 +3,68 @@
 <head>
     <title>多房间聊天室</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* 暗夜模式样式 */
+        body.dark-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .dark-mode .tab, .dark-mode .tab-content, .dark-mode .input-group,  {
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+
+        .dark-mode .message{
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+
+        .dark-mode .message-header .username, .dark-mode .message-header .timestamp {
+            color: #ffffff;
+        }
+        .dark-mode .message-content {
+            color: #ffffff;
+        }
+
+
+        /* 小窗口样式 */
+        #chatFloatWindow {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        #chatFloatWindow .header {
+            background-color: #f1f1f1;
+            padding: 10px;
+            cursor: move;
+        }
+        #chatFloatWindow .messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        #chatFloatWindow .input-group {
+            display: flex;
+            padding: 10px;
+        }
+        #chatFloatWindow .input-group input {
+            flex: 1;
+            padding: 5px;
+        }
+        #chatFloatWindow .input-group button {
+            padding: 5px 10px;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -109,8 +171,12 @@
                         break;
                     case 'show_room_panel':
                         resetUI();
+                        break;
                     case 'user_id': // 新增处理 userId 的消息类型
                         ws.userId = msg.userId; // 保存 userId 到 ws 对象
+                        break;
+                    case 'history': // 新增处理历史消息的类型
+                        msg.messages.forEach(appendMessage); // 将历史消息显示在聊天界面中
                         break;
                 }
             };
@@ -144,17 +210,17 @@
     }
 
     // 修改后的发送消息函数
-    function sendMessage() {
+    function sendMessage(messageContent) {
         const input = document.getElementById('messageInput');
-        const content = input.value.trim();
+        const content = messageContent || input.value.trim();
         if (!content) return;
 
         const message = {
             type: 'message',
             content: content,
-            from: document.getElementById('usernameCreate').value.trim() || document.getElementById('usernameJoin').value.trim(), // 确保消息包含发送者信息
-            userId: ws.userId, // 添加发送者的 userId
-            timestamp: new Date().toLocaleTimeString() // 添加时间戳
+            from: document.getElementById('usernameCreate').value.trim() || document.getElementById('usernameJoin').value.trim(),
+            userId: ws.userId,
+            timestamp: new Date().toLocaleTimeString()
         };
 
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -169,6 +235,7 @@
         }
 
         input.value = '';
+
     }
 
     // 离开房间
@@ -191,9 +258,7 @@
         const messages = document.getElementById('messages');
         const div = document.createElement('div');
 
-        // 改为更可靠的判断方式
-        const currentUserId = ws.userId; // 使用 userId 进行判断
-        // 添加消息类型判断
+        const currentUserId = ws.userId;
         const isMe = msg.userId === currentUserId;
 
         div.className = `message ${isMe ? 'my-message' : 'other-message'}`;
@@ -208,6 +273,11 @@
 
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
+
+        // 小窗口显示消息
+        const floatWindowMessages = document.getElementById('chatFloatWindow').querySelector('.messages');
+        floatWindowMessages.appendChild(div.cloneNode(true));
+        floatWindowMessages.scrollTop = floatWindowMessages.scrollHeight;
     }
 
     function appendSystemMessage(content) {
@@ -261,6 +331,61 @@
     // 修改输入框按钮的点击事件
     document.querySelector('button[onclick="showTab(\'emojis\')"]').setAttribute('onclick', 'showEmojisPanel()');
 
+    // 切换暗夜模式
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+    }
+
+    // 监听粘贴事件
+    document.getElementById('messageInput').addEventListener('paste', function(e) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    sendMessage(img.outerHTML);
+                };
+                reader.readAsDataURL(blob);
+                e.preventDefault();
+            }
+        }
+    });
+
+    // 小窗口聊天浮窗
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    function openChatFloatWindow() {
+        document.getElementById('chatFloatWindow').style.display = 'block';
+    }
+
+    function closeChatFloatWindow() {
+        document.getElementById('chatFloatWindow').style.display = 'none';
+    }
+
+    document.getElementById('chatFloatWindow').querySelector('.header').addEventListener('mousedown', function(e) {
+        isDragging = true;
+        offsetX = e.clientX - document.getElementById('chatFloatWindow').offsetLeft;
+        offsetY = e.clientY - document.getElementById('chatFloatWindow').offsetTop;
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+            document.getElementById('chatFloatWindow').style.left = (e.clientX - offsetX) + 'px';
+            document.getElementById('chatFloatWindow').style.top = (e.clientY - offsetY) + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    document.getElementById('chatFloatWindow').querySelector('.input-group button').addEventListener('click', sendMessage);
+
+
 </script>
 
 <div id="loading" class="hidden">
@@ -298,6 +423,8 @@
             <span>房间ID: <span id="currentRoom">----</span></span>
             <span>当前用户: <span id="currentUsers">----</span></span>
             <button onclick="leaveRoom()">切换房间</button>
+            <button onclick="toggleDarkMode()">切换模式</button>
+            <button onclick="openChatFloatWindow()">打开浮窗</button>
         </div>
 
         <div id="messages"></div>
@@ -326,6 +453,16 @@
             <button onclick="insertEmoji('👏')">👏</button>
             <button onclick="insertEmoji('🙌')">🙌</button>
             <button onclick="insertEmoji('👋')">👋</button>
+        </div>
+    </div>
+
+    <!-- 小窗口聊天浮窗 -->
+    <div id="chatFloatWindow">
+        <div class="header">聊天浮窗 <button onclick="closeChatFloatWindow()">关闭</button></div>
+        <div class="messages"></div>
+        <div class="input-group">
+            <input type="text" placeholder="输入消息，按Enter发送">
+            <button>发送</button>
         </div>
     </div>
 </div>
