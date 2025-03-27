@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>多房间聊天室</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    let ws;
+    let currentRoom = null;
+    let messageQueue = []; // 消息队列
+
+    // 显示选项卡
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabName + 'Tab').classList.add('active');
+        document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
+    }
+
+    function showLoading() {
+        document.getElementById('loading').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+        document.getElementById('loading').classList.add('hidden');
+    }
+
+    // 修改后的创建房间函数
+    async function createRoom() {
+        showLoading();
+        try {
+            await initWebSocket();
+            const username = document.getElementById('usernameCreate').value.trim() || '匿名用户';
+            const password = document.getElementById('roomPassword').value;
+
+            ws.send(JSON.stringify({
+                type: 'create_room',
+                username: username,
+                password: password
+            }));
+
+        } catch (error) {
+            Swal.fire('错误', '连接服务器失败，请重试', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // 修改后的加入房间函数
+    async function joinRoom() {
+        const roomId = document.getElementById('roomId').value.trim();
+        const password = document.getElementById('joinPassword').value;
+        const username = document.getElementById('usernameJoin').value.trim() || '匿名用户';
+
+        try {
+            await initWebSocket(); // 等待连接建立
+
+            ws.send(JSON.stringify({
+                type: 'join_room',
+                room_id: roomId,
+                password: password,
+                username: username
+            }));
+
+        } catch (error) {
+            Swal.fire('错误', '连接服务器失败，请重试', 'error');
+        }
+    }
+
+    // 初始化WebSocket（优化版）
+    function initWebSocket() {
+        return new Promise((resolve, reject) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                resolve();
+                return;
+            }
+
+            ws = new WebSocket('wss://' + window.location.host + '/ws');
+
+            ws.onopen = () => {
+                while (messageQueue.length > 0) {
+                    const msg = messageQueue.shift();
+                    ws.send(JSON.stringify(msg));
+                }
+                resolve();
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                switch (msg.type) {
+                    case 'system':
+                        handleSystemMessage(msg.content);
+                        break;
+                    case 'message':
+                        appendMessage(msg);
+                        break;
+                    case 'room_info':
+                        document.getElementById('currentRoom').textContent = msg.room_id;
+                        break;
+                    case 'error':
+                        Swal.fire('错误', msg.error, 'error');
+                        break;
+                    case 'show_chat_panel':
+                        document.getElementById('roomPanel').classList.add('hidden');
+                        document.getElementById('chatPanel').classList.remove('hidden');
+                        break;
+                    case 'show_room_panel':
+                        resetUI();
+                    case 'user_id': // 新增处理 userId 的消息类型
+                        ws.userId = msg.userId; // 保存 userId 到 ws 对象
+                        break;
+                }
+            };
+
+            ws.onerror = (error) => {
+                reject(error);
+            };
+        });
+    }
+
+    // 处理系统消息
+    function handleSystemMessage(content) {
+        if (content.startsWith('房间创建成功')) {
+            currentRoom = content.split('ID: ')[1];
+            document.getElementById('currentRoom').textContent = currentRoom;
+            appendSystemMessage(`您已创建房间 ${currentRoom}`);
+        } else if (content.startsWith('成功加入房间')) {
+            currentRoom = content.split(' ')[1]; // 假设消息格式为 "成功加入房间 <room_id>"
+            document.getElementById('currentRoom').textContent = currentRoom;
+            document.getElementById('roomPanel').classList.add('hidden');
+            document.getElementById('chatPanel').classList.remove('hidden');
+            ws.send(JSON.stringify({
+                type: 'get_users',
+                room_id: currentRoom
+            }));
+        }else if (content.startsWith('当前房间用户:')){
+            document.getElementById('currentUsers').textContent = content.split(': ')[1];
+            return
+        }
+        appendSystemMessage(content);
+    }
+
+    // 修改后的发送消息函数
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const content = input.value.trim();
+        if (!content) return;
+
+        const message = {
+            type: 'message',
+            content: content,
+            from: document.getElementById('usernameCreate').value.trim() || document.getElementById('usernameJoin').value.trim(), // 确保消息包含发送者信息
+            userId: ws.userId, // 添加发送者的 userId
+            timestamp: new Date().toLocaleTimeString() // 添加时间戳
+        };
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(message));
+        } else {
+            messageQueue.push(message);
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+                initWebSocket().catch(() => {
+                    Swal.fire('错误', '正在尝试重新连接...', 'info');
+                });
+            }
+        }
+
+        input.value = '';
+    }
+
+    // 离开房间
+    function leaveRoom() {
+        ws.send(JSON.stringify({ type: 'leave_room' }));
+        ws.close();
+        resetUI();
+    }
+
+    // 重置界面
+    function resetUI() {
+        currentRoom = null;
+        document.getElementById('chatPanel').classList.add('hidden');
+        document.getElementById('roomPanel').classList.remove('hidden');
+        document.getElementById('messages').innerHTML = '';
+    }
+
+    // 消息处理
+    function appendMessage(msg) {
+        const messages = document.getElementById('messages');
+        const div = document.createElement('div');
+
+        // 改为更可靠的判断方式
+        const currentUserId = ws.userId; // 使用 userId 进行判断
+        // 添加消息类型判断
+        const isMe = msg.userId === currentUserId;
+
+        div.className = `message ${isMe ? 'my-message' : 'other-message'}`;
+
+        div.innerHTML = `
+<div class="message-header">
+  <span class="username">${msg.from}</span>
+  <span class="timestamp">${msg.timestamp}</span>
+</div>
+<div class="message-content">${msg.content}</div>
+`;
+
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function appendSystemMessage(content) {
+        const messages = document.getElementById('messages');
+        const div = document.createElement('div');
+        div.className = 'message system';
+        div.textContent = content;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    // 键盘事件
+    function handleKeyPress(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            if (document.getElementById('roomPanel').classList.contains('hidden')){
+                sendMessage()
+                return
+            }
+            e.preventDefault();
+            // 根据当前激活的选项卡触发相应的按钮
+            if (document.getElementById('createTab').classList.contains('active')) {
+                createRoom();
+            } else if (document.getElementById('joinTab').classList.contains('active')) {
+                joinRoom();
+            }
+        }
+    }
+
+    // 显示表情面板
+    function showEmojisPanel() {
+        const emojisPanel = document.getElementById('emojisPanel');
+        emojisPanel.classList.remove('hidden');
+    }
+
+    // 插入表情到消息输入框
+    function insertEmoji(emoji) {
+        const input = document.getElementById('messageInput');
+        input.value += emoji;
+        input.focus();
+    }
+
+    // 点击其他地方自动收起表情面板
+    document.addEventListener('click', function(event) {
+        const emojisPanel = document.getElementById('emojisPanel');
+        const emojisButton = document.querySelector('button[onclick="showEmojisPanel()"]');
+        if (!emojisPanel.contains(event.target) && event.target !== emojisButton) {
+            emojisPanel.classList.add('hidden');
+        }
+    });
+
+    // 修改输入框按钮的点击事件
+    document.querySelector('button[onclick="showTab(\'emojis\')"]').setAttribute('onclick', 'showEmojisPanel()');
+
+</script>
+
+<div id="loading" class="hidden">
+    <div class="loader"></div>
+    <p>正在连接服务器...</p>
+</div>
+<div class="container">
+    <!-- 房间选择界面 -->
+    <div id="roomPanel" class="panel">
+        <h1>欢迎来到聊天室</h1>
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('create')">创建房间</button>
+            <button class="tab" onclick="showTab('join')">加入房间</button>
+        </div>
+
+        <!-- 创建房间 -->
+        <div id="createTab" class="tab-content active">
+            <input type="text" id="usernameCreate" placeholder="你的昵称">
+            <input type="password" id="roomPassword" placeholder="房间密码（可选）">
+            <button onclick="createRoom()">创建新房间</button>
+        </div>
+
+        <!-- 加入房间 -->
+        <div id="joinTab" class="tab-content">
+            <input type="text" id="usernameJoin" placeholder="你的昵称">
+            <input type="text" id="roomId" placeholder="房间ID（4位随机字符）" maxlength="4">
+            <input type="password" id="joinPassword" placeholder="房间密码（如果有）">
+            <button onclick="joinRoom()">加入房间</button>
+        </div>
+    </div>
+
+    <!-- 聊天界面 -->
+    <div id="chatPanel" class="panel hidden">
+        <div class="room-info">
+            <span>房间ID: <span id="currentRoom">----</span></span>
+            <span>当前用户: <span id="currentUsers">----</span></span>
+            <button onclick="leaveRoom()">切换房间</button>
+        </div>
+
+        <div id="messages"></div>
+
+        <div class="input-group">
+            <input type="text" id="messageInput"
+                   placeholder="输入消息，按Enter发送"
+                   onkeydown="handleKeyPress(event)">
+            <button onclick="sendMessage()">发送</button>
+            <button onclick="showEmojisPanel()">表情</button>
+        </div>
+    </div>
+
+    <!-- 表情选择面板 -->
+    <div id="emojisPanel" class="hidden">
+        <div class="emoji-list">
+            <button onclick="insertEmoji('😊')">😊</button>
+            <button onclick="insertEmoji('😂')">😂</button>
+            <button onclick="insertEmoji('😍')">😍</button>
+            <button onclick="insertEmoji('😎')">😎</button>
+            <button onclick="insertEmoji('😢')">😢</button>
+            <button onclick="insertEmoji('😭')">😭</button>
+            <button onclick="insertEmoji('🤔')">🤔</button>
+            <button onclick="insertEmoji('👍')">👍</button>
+            <button onclick="insertEmoji('👎')">👎</button>
+            <button onclick="insertEmoji('👏')">👏</button>
+            <button onclick="insertEmoji('🙌')">🙌</button>
+            <button onclick="insertEmoji('👋')">👋</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
