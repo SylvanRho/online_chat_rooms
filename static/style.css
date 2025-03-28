@@ -147,6 +147,13 @@ button:hover {
     margin-left: auto;
 }
 
+.message.other {
+    background: var(--secondary-color);
+    color: white;
+    margin-right: auto;
+    border-radius: 15px 15px 15px 0;
+}
+
 .message.system {
     background: #e3f2fd;
     color: var(--primary-color);
