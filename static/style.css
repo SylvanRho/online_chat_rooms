@@ -141,8 +141,6 @@ button:hover {
     max-width: 80%;
 }
 
-
-
 .message.user {
     background: var(--primary-color);
     color: white;
@@ -201,6 +199,72 @@ button:hover {
     word-wrap: break-word;
 }
 
+/* 添加富文本样式 */
+.message-content p {
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+}
+
+.message-content img {
+    max-width: 100%;
+    height: auto;
+    cursor: pointer; /* 添加鼠标指针样式 */
+    border-radius: 5px;
+    margin: 5px 0;
+}
+
+/* 添加模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.9);
+}
+
+.modal-content {
+    margin: auto;
+    display: block;
+    width: 80%;
+    max-width: 700px;
+}
+
+.modal-content img {
+    width: 100%;
+    height: auto;
+}
+
+.close {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.close:hover,
+.close:focus {
+    color: #bbb;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* 添加图片预览样式 */
+#messageInput img {
+    max-width: 100px;
+    height: auto;
+    margin-right: 5px;
+    cursor: pointer; /* 添加鼠标指针样式 */
+    border-radius: 5px;
+}
+
 /* 添加加载动画 */
 .loader {
     border: 4px solid #f3f3f3;
@@ -216,6 +280,7 @@ button:hover {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
 /* 表情选择面板样式 */
 #emojisPanel {
     position: absolute;
@@ -244,3 +309,30 @@ button:hover {
     cursor: pointer;
 }
 
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* 富文本编辑器样式 */
+#messageInput {
+    height: 100px; /* 设置固定高度 */
+    overflow-y: auto; /* 添加垂直滚动条 */
+    border: 1px solid #ccc;
+    padding: 10px; /* 增加内边距 */
+    min-height: 50px;
+    outline: none;
+}
