@@ -330,12 +330,14 @@ button:hover {
 
 /* 富文本编辑器样式 */
 #messageInput {
-    height: 100px; /* 设置固定高度 */
+    height: 50px; /* 设置固定高度 */
     overflow-y: auto; /* 添加垂直滚动条 */
     border: 1px solid #ccc;
     padding: 10px; /* 增加内边距 */
     min-height: 50px;
     outline: none;
+    border-radius: 25px;
+    margin: 10px 5px;
 }
 
 /* 重新设计浮动条样式 */
