@@ -261,6 +261,7 @@ button:hover {
     max-width: 100px;
     height: auto;
     margin-right: 5px;
+    margin-bottom: 5px;
     cursor: pointer; /* 添加鼠标指针样式 */
     border-radius: 5px;
 }
@@ -335,4 +336,99 @@ button:hover {
     padding: 10px; /* 增加内边距 */
     min-height: 50px;
     outline: none;
+}
+
+/* 重新设计浮动条样式 */
+#chatFloatWindow {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    height: 600px; /* 固定高度 */
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    border-radius: 15px; /* 添加圆角 */
+    overflow: hidden;
+    display: flex; /* 使用 Flexbox 布局 */
+    flex-direction: column; /* 垂直排列子元素 */
+}
+
+#chatFloatWindow .header {
+    background-color: #f1f1f1;
+    padding: 10px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: 15px; /* 添加圆角 */
+    border-top-right-radius: 15px; /* 添加圆角 */
+}
+
+.dark-mode #chatFloatWindow {
+    background-color: #1e1e1e; /* 修改背景颜色 */
+    border: 1px solid #3a3e41; /* 修改边框颜色 */
+}
+
+.dark-mode #chatFloatWindow .header {
+    background-color: #1e1e1e; /* 修改背景颜色 */
+}
+
+#chatFloatWindow .messages {
+    flex: 1; /* 使消息区域可滚动 */
+    overflow-y: auto;
+    padding: 10px;
+    min-height: 249px;
+    height: auto;
+    max-height: 249px;
+    background-color: #f9f9f9; /* 添加背景色 */
+    border-bottom: 1px solid #ccc; /* 添加底部边框 */
+}
+
+.dark-mode #chatFloatWindow .messages {
+    background-color: #181a1b; /* 修改背景颜色 */
+    border-bottom: 1px solid #35393b; /* 添加底部边框 */
+}
+
+.dark-mode #chatFloatWindow .input-group {
+    background-color: #1e1e1e; /* 修改背景颜色 */
+    border-bottom-left-radius: 15px; /* 添加圆角 */
+    border-bottom-right-radius: 15px; /* 添加圆角 */
+}
+
+#chatFloatWindow .input-group {
+    display: flex;
+    padding: 10px;
+    background-color: #ffffff; /* 添加背景色 */
+    border-bottom-left-radius: 15px; /* 添加圆角 */
+    border-bottom-right-radius: 15px; /* 添加圆角 */
+}
+
+#chatFloatWindow .input-group #floatMessageInput {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 25px;
+    min-height: 50px;
+    overflow-y: auto; /* 支持自动换行 */
+    resize: vertical; /* 允许垂直调整大小 */
+    width: 100%; /* 固定宽度 */
+    box-sizing: border-box; /* 确保内边距和边框包含在宽度内 */
+}
+
+#chatFloatWindow .input-group button {
+    padding: 10px 15px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 25px; /* 添加圆角 */
+    background-color: #2196F3; /* 添加背景色 */
+    color: white; /* 添加文字颜色 */
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#chatFloatWindow .input-group button:hover {
+    background-color: #1976d2; /* 添加悬停背景色 */
 }

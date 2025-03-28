@@ -47,11 +47,7 @@
             padding: 10px;
             cursor: move;
         }
-        #chatFloatWindow .messages {
-            height: 300px;
-            overflow-y: auto;
-            padding: 10px;
-        }
+
         #chatFloatWindow .input-group {
             display: flex;
             padding: 10px;
@@ -264,6 +260,53 @@
         }
     }
 
+    function sendMessageFromFloat() {
+        const input = document.getElementById('floatMessageInput');
+        const contentParts = [];
+
+        // 收集所有图片预览
+        const previews = input.querySelectorAll('img');
+        previews.forEach(img => {
+            contentParts.push(`<img src="${img.src}" alt="粘贴的图片" style="max-width: 100%;">`);
+        });
+
+        // 添加文本内容，过滤掉 img 标签
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = input.innerHTML;
+        Array.from(tempDiv.querySelectorAll('img')).forEach(img => img.remove()); // 删除 img 标签
+        const textContent = tempDiv.innerHTML.trim();
+        if (textContent) {
+            contentParts.push(textContent);
+        }
+
+        // 检查是否有内容，如果没有内容则不发送
+        if (contentParts.length === 0) return; // 仅在没有内容时返回
+
+        const message = {
+            type: 'message',
+            content: contentParts.join(' '), // 合并文本和图片
+            from: document.getElementById('usernameCreate').value.trim() || document.getElementById('usernameJoin').value.trim(),
+            userId: ws.userId,
+            timestamp: new Date().toLocaleTimeString()
+        };
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(message));
+        } else {
+            messageQueue.push(message);
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+                initWebSocket().catch(() => {
+                    Swal.fire('错误', '正在尝试重新连接...', 'info');
+                });
+            }
+        }
+
+        // 清空输入框和预览
+        while (input.firstChild) {
+            input.removeChild(input.firstChild);
+        }
+    }
+
     // 离开房间
     function leaveRoom() {
         ws.send(JSON.stringify({ type: 'leave_room' }));
@@ -321,17 +364,20 @@
 
     // 键盘事件
     function handleKeyPress(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            if (document.getElementById('roomPanel').classList.contains('hidden')){
-                sendMessage()
-                return
-            }
-            e.preventDefault();
-            // 根据当前激活的选项卡触发相应的按钮
-            if (document.getElementById('createTab').classList.contains('active')) {
-                createRoom();
-            } else if (document.getElementById('joinTab').classList.contains('active')) {
-                joinRoom();
+        if (e.key === 'Enter') {
+            if (e.ctrlKey) {
+                // 允许换行
+                return;
+            } else {
+                e.preventDefault();
+                if (document.getElementById('roomPanel').classList.contains('hidden')) {
+                    // 检查浮动窗口是否显示
+                    if (document.getElementById('chatFloatWindow').style.display === 'block') {
+                        sendMessageFromFloat();
+                    } else {
+                        sendMessage();
+                    }
+                }
             }
         }
     }
@@ -493,8 +539,41 @@
         isDragging = false;
     });
 
-    document.getElementById('chatFloatWindow').querySelector('.input-group button').addEventListener('click', sendMessage);
+    document.getElementById('chatFloatWindow').querySelector('.input-group button').addEventListener('click', sendMessageFromFloat);
 
+    // 添加调整大小功能
+    let isResizing = false;
+    let resizeOffsetX, resizeOffsetY;
+
+    document.getElementById('chatFloatWindow').addEventListener('mousedown', function(e) {
+        if (e.target.classList.contains('resizer')) {
+            isResizing = true;
+            resizeOffsetX = e.clientX - document.getElementById('chatFloatWindow').offsetWidth;
+            resizeOffsetY = e.clientY - document.getElementById('chatFloatWindow').offsetHeight;
+        } else {
+            isDragging = true;
+            offsetX = e.clientX - document.getElementById('chatFloatWindow').offsetLeft;
+            offsetY = e.clientY - document.getElementById('chatFloatWindow').offsetTop;
+        }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+            document.getElementById('chatFloatWindow').style.left = (e.clientX - offsetX) + 'px';
+            document.getElementById('chatFloatWindow').style.top = (e.clientY - offsetY) + 'px';
+        } else if (isResizing) {
+            document.getElementById('chatFloatWindow').style.width = (e.clientX - resizeOffsetX) + 'px';
+            document.getElementById('chatFloatWindow').style.height = (e.clientY - resizeOffsetY) + 'px';
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+        isResizing = false;
+    });
+
+    // 添加调整大小的图标
+    document.getElementById('chatFloatWindow').innerHTML += '<div class="resizer" style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: #ccc; cursor: se-resize;"></div>';
 
 </script>
 
@@ -569,7 +648,7 @@
         <div class="header">聊天浮窗 <button onclick="closeChatFloatWindow()">关闭</button></div>
         <div class="messages"></div>
         <div class="input-group">
-            <div id="floatMessageInput" contenteditable="true" placeholder="输入消息，按Enter发送" onkeydown="handleKeyPress(event)"></div>
+            <div id="floatMessageInput" contenteditable="true" placeholder="输入消息，按Enter发送" onkeydown="handleKeyPress(event)" style="min-height: 50px; padding: 5px; border: 1px solid #ccc; border-radius: 25px;"></div>
             <button onclick="sendMessageFromFloat()">发送</button>
         </div>
     </div>
