@@ -334,14 +334,17 @@
         const currentUserId = ws.userId;
         const isMe = msg.userId === currentUserId;
 
-        div.className = `message ${isMe ? 'my-message' : 'other-message'}`;
+        div.className = `message ${isMe ? 'user' : 'other'}`; // 修改为根据发送者设置不同的CSS类
+
+        // 确保内容正确解析和显示
+        const content = msg.content.replace(/<img src="([^"]+)" alt="粘贴的图片" style="max-width: 100%;">/g, '<img src="$1" alt="粘贴的图片" style="max-width: 100%; height: auto; cursor: pointer; border-radius: 5px; margin: 5px 0;">');
 
         div.innerHTML = `
 <div class="message-header">
   <span class="username">${msg.from}</span>
   <span class="timestamp">${msg.timestamp}</span>
 </div>
-<div class="message-content">${msg.content}</div>
+<div class="message-content">${content}</div>
 `;
 
         messages.appendChild(div);
@@ -391,7 +394,7 @@
     // 插入表情到消息输入框
     function insertEmoji(emoji) {
         const input = document.getElementById('messageInput');
-        input.value += emoji;
+        input.innerHTML += emoji; // 使用 innerHTML 来插入表情
         input.focus();
     }
 
@@ -448,6 +451,7 @@
     document.getElementById('messageInput').addEventListener('paste', function(e) {
         const items = e.clipboardData.items;
         let imageFound = false;
+        let emojiFound = false;
 
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
@@ -510,11 +514,20 @@
                 };
                 reader.readAsDataURL(blob);
                 e.preventDefault();
+            } else if (items[i].type === 'text/plain') {
+                items[i].getAsString(function(text) {
+                    if (isEmoji(text)) {
+                        emojiFound = true;
+                        const input = document.getElementById('messageInput');
+                        input.innerHTML += text;
+                        input.focus();
+                    }
+                });
             }
         }
 
-        if (!imageFound) {
-            Swal.fire('提示', '未检测到剪切板中的图片', 'info');
+        if (!imageFound && !emojiFound) {
+            Swal.fire('提示', '未检测到剪切板中的图片或表情', 'info');
         }
     });
 
@@ -585,6 +598,11 @@
         // 添加画中画按钮
         document.getElementById('chatFloatWindow').querySelector('.header').innerHTML += '<button onclick="togglePictureInPicture()">画中画</button>';
     });
+
+    function isEmoji(text) {
+        const regex = /[\u{1F600}-\u{1F64F}]/u; // 表情符号范围
+        return regex.test(text);
+    }
 </script>
 
 <div id="loading" class="hidden">
@@ -622,7 +640,7 @@
             <span>房间ID: <span id="currentRoom">----</span></span>
             <span>当前用户: <span id="currentUsers">----</span></span>
             <button onclick="leaveRoom()">切换房间</button>
-            <button onclick="toggleDarkMode()" id="darkModeButton">白天模式</button>
+            <button onclick="toggleDarkMode()" id="darkModeButton">黑夜模式</button>
         </div>
 
         <div id="messages"></div>
@@ -657,7 +675,7 @@
         <div class="header">聊天浮窗 <button onclick="closeChatFloatWindow()">关闭</button></div>
         <div class="messages"></div>
         <div class="input-group">
-            <div id="floatMessageInput" contenteditable="true" placeholder="输入消息，按Enter发送" onkeydown="handleKeyPress(event)" style="min-height: 50px; padding: 5px; border: 1px solid #ccc; border-radius: 25px;"></div>
+            <div id="floatMessageInput" contenteditable="true" placeholder="输入消息，按Enter发送" onkeydown="handleKeyPress(event)"></div>
             <button onclick="sendMessageFromFloat()">发送</button>
         </div>
     </div>
